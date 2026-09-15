@@ -84,3 +84,56 @@ def test_off_ui_action_returns_its_result(base):
     assert status == 200
     assert out['ok'] == True
     assert 'FLIMKit' in out['text']
+
+
+def login(user, password):
+    import base64
+    return 'Basic ' + base64.b64encode((user + ':' + password).encode('utf-8')).decode('ascii')
+
+
+def authed(url, header):
+    req = urllib.request.Request(url, headers={'Authorization': header} if header else {})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status, resp.headers
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.headers
+
+
+def test_everything_is_open_without_a_password(base, monkeypatch):
+    monkeypatch.delenv('FLIMKIT_WEB_PASSWORD', raising=False)
+    assert authed(base + '/', None)[0] == 200
+
+
+def test_a_password_protects_pages_and_api(base, monkeypatch):
+    monkeypatch.setenv('FLIMKIT_WEB_PASSWORD', 's3cret')
+    monkeypatch.delenv('FLIMKIT_WEB_USER', raising=False)
+    status, headers = authed(base + '/', None)
+    assert status == 401
+    assert headers['WWW-Authenticate'].startswith('Basic')
+    assert authed(base + '/api/browse', login('flimkit', 'wrong'))[0] == 401
+    assert authed(base + '/api/browse', login('someone', 's3cret'))[0] == 401
+    assert authed(base + '/', login('flimkit', 's3cret'))[0] == 200
+    status, headers, body = request(base + '/api/action', {'name': 'about'})
+    assert status == 401
+
+
+def test_the_login_user_can_be_changed(base, monkeypatch):
+    monkeypatch.setenv('FLIMKIT_WEB_PASSWORD', 's3cret')
+    monkeypatch.setenv('FLIMKIT_WEB_USER', 'lab')
+    assert authed(base + '/', login('lab', 's3cret'))[0] == 200
+    assert authed(base + '/', login('flimkit', 's3cret'))[0] == 401
+
+
+def test_healthz_needs_no_password(base, monkeypatch):
+    monkeypatch.setenv('FLIMKIT_WEB_PASSWORD', 's3cret')
+    status, headers, body = request(base + '/healthz')
+    assert status == 200
+    assert body == b'ok'
+
+
+def test_environment_overrides_the_address(monkeypatch):
+    monkeypatch.setenv('FLIMKIT_WEB_HOST', '0.0.0.0')
+    monkeypatch.setenv('FLIMKIT_WEB_PORT', '14500')
+    assert server._address() == ('0.0.0.0', 14500)
+    assert server.url() == 'http://127.0.0.1:14500'

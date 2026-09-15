@@ -1,5 +1,6 @@
 import io
 import itertools
+import os
 import threading
 import time
 
@@ -26,6 +27,8 @@ def mark_action():
 
 
 def web_owned():
+    if os.environ.get('FLIMKIT_WEB_HEADLESS', '') not in ('', '0', 'false', 'False'):
+        return True
     now = time.time()
     return now - _flags['last_poll'] < OWN_POLL_S and now - _flags['last_action'] < OWN_ACTION_S
 

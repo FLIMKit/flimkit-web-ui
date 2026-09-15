@@ -43,7 +43,7 @@ Files are chosen with a file browser in the page, which lists folders on the mac
 
 ## Security
 
-The server listens on `127.0.0.1` only and has no authentication. Anyone who can reach it can browse your files and run FLIMKit, so do not expose it to a network you do not trust.
+By default the server listens on `127.0.0.1` only and has no password. Anyone who can reach it can browse your files and run FLIMKit, so set a password before exposing it to any network.
 
 The address is read from the `plugin:web_ui` section of `~/.flimkit/config.json`:
 
@@ -55,6 +55,22 @@ The address is read from the `plugin:web_ui` section of `~/.flimkit/config.json`
   }
 }
 ```
+
+## Running without a desktop (Docker, servers)
+
+FLIMKit still needs an X display to start its Tk window, so run it under a virtual display such as Xvfb, and configure the web UI with environment variables. These override the config file.
+
+| Variable | Effect |
+|---|---|
+| `FLIMKIT_WEB_HOST` | Address to listen on, for example `0.0.0.0` inside a container |
+| `FLIMKIT_WEB_PORT` | Port to listen on |
+| `FLIMKIT_WEB_PASSWORD` | Require HTTP Basic authentication for every page and API call |
+| `FLIMKIT_WEB_USER` | The user name for that login, `flimkit` by default |
+| `FLIMKIT_WEB_HEADLESS` | Set to `1` when nobody can see the desktop, so every FLIMKit dialog goes to the web page instead of waiting on an invisible window |
+
+`GET /healthz` answers `ok` without a password once the server is up, for container health checks.
+
+The [FLIMKit Docker images](https://github.com/FLIMKit/FLIMKit#docker--truenas-scale) are set up this way.
 
 ## Working on it
 

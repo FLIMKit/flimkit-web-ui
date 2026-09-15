@@ -1,3 +1,5 @@
+import base64
+import hmac
 import json
 import os
 import threading
@@ -21,12 +23,30 @@ _lock = threading.Lock()
 
 def _address():
     cfg = plugin_config('web_ui')
-    return cfg.get('host', '127.0.0.1'), int(cfg.get('port', 8765) or 8765)
+    host = os.environ.get('FLIMKIT_WEB_HOST') or cfg.get('host', '127.0.0.1')
+    port = os.environ.get('FLIMKIT_WEB_PORT') or cfg.get('port', 8765) or 8765
+    return host, int(port)
 
 
 def url():
     host, port = _address()
+    if host in ('', '0.0.0.0', '::'):
+        host = '127.0.0.1'
     return 'http://' + host + ':' + str(port)
+
+
+def authorised(header):
+    password = os.environ.get('FLIMKIT_WEB_PASSWORD', '')
+    if password == '':
+        return True
+    if not header or header.startswith('Basic ') == False:
+        return False
+    try:
+        given = base64.b64decode(header[6:], validate=True)
+    except Exception:
+        return False
+    expected = (os.environ.get('FLIMKIT_WEB_USER', 'flimkit') + ':' + password).encode('utf-8')
+    return hmac.compare_digest(given, expected)
 
 
 def make_handler(app):
@@ -49,10 +69,22 @@ def make_handler(app):
         def _json(self, payload, status=200):
             self._send(status, json.dumps(payload, default=str).encode('utf-8'), 'application/json')
 
+        def _allowed(self):
+            if authorised(self.headers.get('Authorization')) == True:
+                return True
+            self._send(401, b'authentication required', 'text/plain',
+                       {'WWW-Authenticate': 'Basic realm="FLIMKit", charset="UTF-8"'})
+            return False
+
         def do_GET(self):
             parsed = urlparse(self.path)
             q = parse_qs(parsed.query)
             path = parsed.path
+            if path == '/healthz':
+                self._send(200, b'ok', 'text/plain')
+                return
+            if self._allowed() == False:
+                return
             try:
                 if path in _STATIC:
                     nam, ctype = _STATIC[path]
@@ -82,8 +114,11 @@ def make_handler(app):
 
         def do_POST(self):
             length = int(self.headers.get('Content-Length', 0) or 0)
+            raw = self.rfile.read(length)
+            if self._allowed() == False:
+                return
             try:
-                payload = json.loads(self.rfile.read(length) or b'{}')
+                payload = json.loads(raw or b'{}')
                 if self.path == '/api/set':
                     self._json({'ok': True, 'notes': api.set_fields(app, payload)})
                 elif self.path == '/api/action':

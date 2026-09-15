@@ -72,6 +72,13 @@ def test_web_owns_dialogs_only_while_polled_and_used():
     assert bridge.web_owned() == False
 
 
+def test_headless_mode_always_sends_dialogs_to_the_page(monkeypatch):
+    monkeypatch.setenv('FLIMKIT_WEB_HEADLESS', '1')
+    assert bridge.web_owned() == True
+    monkeypatch.setenv('FLIMKIT_WEB_HEADLESS', '0')
+    assert bridge.web_owned() == False
+
+
 def test_on_ui_runs_inline_on_the_main_thread():
     assert bridge.on_ui(object(), lambda: 5) == 5
 
