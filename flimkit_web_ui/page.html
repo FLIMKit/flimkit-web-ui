@@ -1,0 +1,469 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FLIMKit Web UI</title>
+<style>
+  :root { --bg:#1c1c1c; --panel:#252525; --line:#3a3a3a; --text:#e8e8e8; --muted:#9a9a9a; --accent:#3d8bd9; --warn:#e8a838; --err:#e06060; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding-inline:16px; }
+  header { display:flex; align-items:center; gap:10px; padding-block:10px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:18px; font-weight:600; margin:0 8px 0 0; }
+  nav { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+  nav .sep { width:1px; height:20px; background:var(--line); margin:0 6px; }
+  .badge { color:var(--warn); font-weight:600; }
+  .muted { color:var(--muted); }
+  .mono { font-family:Menlo, Consolas, monospace; font-size:12px; }
+  main { display:grid; grid-template-columns:minmax(320px, 460px) 1fr; gap:16px; padding-block:12px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin-bottom:10px; }
+  section > h2, .h2 { font-size:13px; margin:0 0 8px; font-weight:600; }
+  .row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-block:4px; }
+  .row label.lbl { min-width:120px; color:var(--muted); }
+  .col { display:flex; flex-direction:column; gap:2px; }
+  .indent { margin-left:18px; }
+  input[type=text], select, textarea { background:#1a1a1a; color:var(--text); border:1px solid var(--line); border-radius:4px; padding:4px 6px; min-width:0; font:inherit; }
+  input.grow { flex:1; }
+  input.short { width:72px; }
+  button { background:#333; color:var(--text); border:1px solid #4a4a4a; border-radius:4px; padding:4px 10px; cursor:pointer; font:inherit; }
+  button:hover { background:#3d3d3d; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; padding:6px 18px; font-weight:600; }
+  button.on { outline:2px solid var(--accent); }
+  .stage { position:relative; display:inline-block; max-width:100%; }
+  .stage img { display:block; max-width:100%; background:#000; border:1px solid var(--line); min-height:40px; }
+  .stage canvas { position:absolute; left:0; top:0; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:3px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .scroll { overflow:auto; max-height:240px; }
+  pre { background:#141414; color:#d4d4d4; padding:8px; margin:0; overflow:auto; white-space:pre-wrap; }
+  pre#log { height:260px; }
+  .tabs button { border-radius:4px 4px 0 0; }
+  .bar { height:8px; background:#333; border-radius:4px; overflow:hidden; flex:1; min-width:120px; }
+  .bar > div { height:100%; background:var(--accent); width:0; }
+  details summary { cursor:pointer; font-weight:600; }
+  .grid2 { display:grid; grid-template-columns:auto 1fr auto 1fr; gap:4px 8px; align-items:center; margin-top:8px; }
+  #toasts { position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:6px; max-width:440px; z-index:40; }
+  .toast { background:#2e2e2e; border-left:4px solid var(--accent); padding:8px 10px; border-radius:4px; white-space:pre-wrap; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+  .toast.warning { border-color:var(--warn); } .toast.error { border-color:var(--err); }
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:30; padding:16px; }
+  .overlay .box { background:var(--panel); border:1px solid var(--line); border-radius:6px; width:min(720px, 100%); max-height:90vh; overflow:auto; padding:12px; }
+  ul.list { list-style:none; margin:8px 0; padding:0; max-height:360px; overflow:auto; background:#1a1a1a; border:1px solid var(--line); }
+  ul.list li { padding:4px 8px; cursor:pointer; }
+  ul.list li:hover { background:#2f2f2f; }
+  ul.list li.dir { color:#7ab8ff; }
+  ul.list li.dim { color:#666; }
+  ul.list li.sel { background:#2a3c52; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FLIMKit</h1>
+  <nav>
+    <button data-form="fov">Single FOV</button><button data-form="stitch">Tile Stitch</button><button data-form="phasor">Phasor</button><button data-form="batch">Batch</button><button data-form="irf">Machine IRF</button>
+    <span class="sep"></span>
+    <button data-tool="project">Project</button><button data-tool="synth">Synthetic PTU</button><button data-tool="prefs">Preferences</button><button data-tool="plugins">Plugins</button><button data-tool="help">Help</button>
+  </nav>
+  <span id="expert-badge" class="badge" hidden>Custom expert settings active</span>
+  <span id="conn" class="muted"></span>
+</header>
+<main>
+<div>
+  <!-- ===== Single FOV ===== -->
+  <div data-forms="fov">
+    <section>
+      <h2>Input Files</h2>
+      <div class="row"><span class="muted">Analysis:</span>
+        <label><input type="radio" name="sv_fov_analysis" data-field="sv_fov_analysis" value="single"> Single FOV</label>
+        <label><input type="radio" name="sv_fov_analysis" data-field="sv_fov_analysis" value="zstack"> Z-stack</label></div>
+      <div class="row" data-when="sv_fov_analysis=single"><label class="lbl">Data file *</label><input type="text" class="grow" data-field="sv_ptu"><button data-pick="sv_ptu" data-kind="file">Browse...</button></div>
+      <div class="row" data-when="sv_fov_analysis=zstack"><label class="lbl">Z-stack folder *</label><input type="text" class="grow" data-field="sv_zstack_dir"><button data-pick="sv_zstack_dir" data-kind="dir">Browse...</button></div>
+      <div class="row muted" data-when="sv_fov_analysis=zstack">A folder of region_zX.ptu slices, fitted as one FOV</div>
+      <div class="row"><label class="lbl">LAS X export</label><input type="text" class="grow" data-field="sv_xlsx" placeholder="optional"><button data-pick="sv_xlsx" data-kind="file">Browse...</button></div>
+    </section>
+    <section data-when="sv_fit_model_fov!=tail">
+      <h2>Instrument Response Function (IRF)</h2>
+      <div class="col" data-irf="irf_fov"></div>
+      <div class="row" data-when="irf_fov.method=file|machine_irf|machine_irf_sigma_full|machine_irf_sigma_half"><label class="lbl">IRF / machine IRF path</label><input type="text" class="grow" data-field="irf_fov.path"><button data-pick="irf_fov.path" data-kind="file">Browse...</button></div>
+      <div class="row muted" data-when="irf_fov.method=irf_xlsx">Uses the LAS X export entered in Input Files above</div>
+    </section>
+    <section>
+      <h2>Fitting Parameters</h2>
+      <div class="row"><span class="muted">Fit model:</span>
+        <label><input type="radio" name="sv_fit_model_fov" data-field="sv_fit_model_fov" value="discrete"> n-exp</label>
+        <label><input type="radio" name="sv_fit_model_fov" data-field="sv_fit_model_fov" value="gaussian"> Gaussian dist.</label>
+        <label><input type="radio" name="sv_fit_model_fov" data-field="sv_fit_model_fov" value="lorentzian"> Lorentzian dist.</label>
+        <label><input type="radio" name="sv_fit_model_fov" data-field="sv_fit_model_fov" value="tail"> n-exp tail</label></div>
+      <div class="row" data-when="sv_fit_model_fov=discrete|tail"><span class="muted">Components:</span>
+        <label><input type="radio" name="iv_nexp_fov" data-field="iv_nexp_fov" value="1"> 1</label><label><input type="radio" name="iv_nexp_fov" data-field="iv_nexp_fov" value="2"> 2</label><label><input type="radio" name="iv_nexp_fov" data-field="iv_nexp_fov" value="3"> 3</label></div>
+      <div class="row" data-when="sv_fit_model_fov!=discrete|tail"><span class="muted">Components:</span>
+        <label><input type="radio" name="iv_ncomp_dist_fov" data-field="iv_ncomp_dist_fov" value="1"> 1 (unimodal)</label><label><input type="radio" name="iv_ncomp_dist_fov" data-field="iv_ncomp_dist_fov" value="2"> 2 (bimodal)</label></div>
+      <div class="row"><span class="muted">Fitting mode:</span>
+        <label><input type="radio" name="sv_mode_fov" data-field="sv_mode_fov" value="both"> Full</label><label><input type="radio" name="sv_mode_fov" data-field="sv_mode_fov" value="summed"> Fast</label><span class="muted">(fast = no FLIM image)</span></div>
+      <div class="row"><label class="lbl">Fit window (ns)</label><input type="text" class="short" data-field="sv_tau_min_fov"> to <input type="text" class="short" data-field="sv_tau_max_fov"></div>
+      <div class="row"><label class="lbl">Output prefix</label><input type="text" class="grow" data-field="sv_out_fov"></div>
+      <div class="row muted" data-when="sv_fit_model_fov=tail">Tail fit: no IRF used, fitted past the decay peak</div>
+    </section>
+    <section>
+      <h2>Masking &amp; Thresholding</h2>
+      <div class="row"><label><input type="checkbox" data-field="bv_cell"> Apply cell mask (Cellpose-SAM)</label></div>
+      <div class="row"><label><input type="checkbox" data-field="bv_thr_fov"> Intensity threshold (min photons/px):</label><input type="text" class="short" data-field="sv_thr_fov" data-enable="bv_thr_fov=true"></div>
+      <div class="row"><label><input type="checkbox" data-field="bv_correct_pileup"> Apply Coates pile-up correction (recommended if pile-up &gt; 5%)</label></div>
+      <div class="row"><label class="lbl">Time-varying bg PTU</label><input type="text" class="grow" data-field="sv_tvb_ptu_fov" placeholder="optional"><button data-pick="sv_tvb_ptu_fov" data-kind="file">Browse...</button></div>
+    </section>
+  </div>
+
+  <!-- ===== Tile Stitch ===== -->
+  <div data-forms="stitch">
+    <section>
+      <h2>Input Files</h2>
+      <div class="row"><label class="lbl">XLIF metadata *</label><input type="text" class="grow" data-field="sv_xlif"><button data-pick="sv_xlif" data-kind="file">Browse...</button></div>
+      <div class="row"><label class="lbl">PTU tile directory *</label><input type="text" class="grow" data-field="sv_ptu_dir"><button data-pick="sv_ptu_dir" data-kind="dir">Browse...</button></div>
+      <div class="row"><label class="lbl">Base output dir *</label><input type="text" class="grow" data-field="sv_out_st"><button data-pick="sv_out_st" data-kind="dir">Browse...</button></div>
+      <div class="row muted">A sub-folder named after the ROI will be created inside</div>
+      <div class="row"><label><input type="checkbox" data-field="bv_rotate"> Rotate tiles 90° CW (recommended for FLIM microscope)</label></div>
+    </section>
+    <section>
+      <h2>Pipeline</h2>
+      <div class="col">
+        <label><input type="radio" name="sv_pipeline" data-field="sv_pipeline" value="stitch_only"> Stitch tiles only</label>
+        <label><input type="radio" name="sv_pipeline" data-field="sv_pipeline" value="stitch_fit"> Stitch then fit full ROI</label>
+        <label><input type="radio" name="sv_pipeline" data-field="sv_pipeline" value="tile_fit"> Per-tile fit [recommended - fits each tile independently]</label>
+        <label><input type="radio" name="sv_pipeline" data-field="sv_pipeline" value="series_fit"> Multidimensional series [z-stack and/or timelapse tiles]</label>
+      </div>
+    </section>
+    <div data-when="sv_pipeline!=stitch_only">
+      <section data-when="sv_fit_model_st!=tail">
+        <h2>Instrument Response Function (IRF)</h2>
+        <div class="col" data-irf="irf_st"></div>
+        <div class="row" data-when="irf_st.method=file|machine_irf|machine_irf_sigma_full|machine_irf_sigma_half"><label class="lbl">IRF / machine IRF path</label><input type="text" class="grow" data-field="irf_st.path"><button data-pick="irf_st.path" data-kind="file">Browse...</button></div>
+        <div class="row muted" data-when="irf_st.method=irf_xlsx">Uses an LAS X export (browse to one above)</div>
+      </section>
+      <section>
+        <h2>Fitting Parameters</h2>
+        <div class="row"><span class="muted">Fit model:</span>
+          <label><input type="radio" name="sv_fit_model_st" data-field="sv_fit_model_st" value="discrete"> n-exp</label>
+          <label><input type="radio" name="sv_fit_model_st" data-field="sv_fit_model_st" value="gaussian"> Gaussian dist.</label>
+          <label><input type="radio" name="sv_fit_model_st" data-field="sv_fit_model_st" value="lorentzian"> Lorentzian dist.</label>
+          <label><input type="radio" name="sv_fit_model_st" data-field="sv_fit_model_st" value="tail"> n-exp tail</label></div>
+        <div class="row" data-when="sv_fit_model_st=discrete|tail"><span class="muted">Components:</span>
+          <label><input type="radio" name="iv_nexp_st" data-field="iv_nexp_st" value="1"> 1</label><label><input type="radio" name="iv_nexp_st" data-field="iv_nexp_st" value="2"> 2</label><label><input type="radio" name="iv_nexp_st" data-field="iv_nexp_st" value="3"> 3</label></div>
+        <div class="row" data-when="sv_fit_model_st!=discrete|tail"><span class="muted">Components:</span>
+          <label><input type="radio" name="iv_ncomp_dist_st" data-field="iv_ncomp_dist_st" value="1"> 1 (unimodal)</label><label><input type="radio" name="iv_ncomp_dist_st" data-field="iv_ncomp_dist_st" value="2"> 2 (bimodal)</label></div>
+        <div class="row"><label><input type="checkbox" data-field="bv_perpix"> Per-pixel fitting [REQUIRED FOR ROI ANALYSIS]</label></div>
+        <div class="indent" data-when="bv_perpix=true">
+          <div class="row"><label><input type="checkbox" data-field="bv_save_tau_weighted"> Export τ-weighted map</label><label><input type="checkbox" data-field="bv_save_int_weighted"> Export intensity-weighted map</label></div>
+          <div class="row"><label><input type="checkbox" data-field="bv_save_amp_weighted"> Export amplitude-weighted map</label><label><input type="checkbox" data-field="bv_save_ind"> Save individual component maps</label></div>
+          <div class="row"><label class="lbl">Lifetime display (ns)</label><input type="text" class="short" data-field="sv_tau_lo"> to <input type="text" class="short" data-field="sv_tau_hi"><span class="muted">(blank = auto)</span></div>
+          <div class="row"><label class="lbl">Intensity display</label><input type="text" class="short" data-field="sv_int_lo"> to <input type="text" class="short" data-field="sv_int_hi"><span class="muted">(blank = auto)</span></div>
+        </div>
+        <div class="row"><label class="lbl">Fit window (ns)</label><input type="text" class="short" data-field="sv_tau_fit_lo"> to <input type="text" class="short" data-field="sv_tau_fit_hi"></div>
+        <div class="row muted" data-when="sv_fit_model_st=tail">Tail fit: no IRF used, fitted past the decay peak</div>
+      </section>
+      <section>
+        <h2>Masking &amp; Thresholding</h2>
+        <div class="row"><label><input type="checkbox" data-field="bv_thr_st"> Intensity threshold (min photons/px):</label><input type="text" class="short" data-field="sv_thr_st" data-enable="bv_thr_st=true"></div>
+        <div class="row"><label><input type="checkbox" data-field="bv_correct_pileup_st"> Apply Coates pile-up correction</label></div>
+        <div class="row"><label class="lbl">Time-varying bg PTU</label><input type="text" class="grow" data-field="sv_tvb_ptu_st" placeholder="optional, aligned per tile"><button data-pick="sv_tvb_ptu_st" data-kind="file">Browse...</button></div>
+      </section>
+      <section>
+        <h2>Tile Registration</h2>
+        <div class="row"><label><input type="checkbox" data-field="bv_register"> Phase-correlation registration (fixes stage Y/X drift)</label></div>
+        <div class="row"><label class="lbl">Max shift (px)</label><input type="text" class="short" data-field="sv_reg_max_shift"><span class="muted">(increase if drift &gt; 120px)</span></div>
+      </section>
+      <section data-when="sv_pipeline=tile_fit">
+        <h2>Per-Tile IRF Directory (optional)</h2>
+        <div class="row"><label class="lbl">IRF XLSX dir</label><input type="text" class="grow" data-field="sv_tile_irf_dir"><button data-pick="sv_tile_irf_dir" data-kind="dir">Browse...</button></div>
+        <div class="row muted">One &lt;tile_name&gt;.xlsx per tile; leave blank to use the IRF method above</div>
+      </section>
+      <section data-when="sv_pipeline=series_fit">
+        <h2>Multidimensional Series</h2>
+        <div class="row"><label class="lbl">Pool decay every N timepoints</label><input type="text" class="short" data-field="sv_pool_stride"><span class="muted">(1 = every timepoint)</span></div>
+        <div class="row muted">One consensus lifetime is fitted across the whole series, so amplitudes stay comparable between timepoints.</div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== Batch ===== -->
+  <div data-forms="batch">
+    <section>
+      <h2>Batch Processing</h2>
+      <div class="row">
+        <label><input type="radio" name="sv_batch_mode" data-field="sv_batch_mode" value="tiled"> Multi-Tile ROI Fit</label>
+        <label><input type="radio" name="sv_batch_mode" data-field="sv_batch_mode" value="fov"> Single FOV Fit</label>
+        <label><input type="radio" name="sv_batch_mode" data-field="sv_batch_mode" value="timelapse"> Timelapse Fit</label></div>
+    </section>
+    <section>
+      <h2>Input / Output</h2>
+      <div class="row" data-when="sv_batch_mode=tiled"><label class="lbl">XLIF folder *</label><input type="text" class="grow" data-field="sv_batch_xlif_dir"><button data-pick="sv_batch_xlif_dir" data-kind="dir">Browse...</button></div>
+      <div class="row"><label class="lbl">PTU folder *</label><input type="text" class="grow" data-field="sv_batch_ptu_dir"><button data-pick="sv_batch_ptu_dir" data-kind="dir">Browse...</button></div>
+      <div class="row" data-when="bv_batch_save_beside=false"><label class="lbl">Output base dir *</label><input type="text" class="grow" data-field="sv_batch_out_dir"><button data-pick="sv_batch_out_dir" data-kind="dir">Browse...</button></div>
+      <div class="row"><label><input type="checkbox" data-field="bv_batch_save_beside"> Save beside input folder</label><span class="mono" id="batch-beside" data-when="bv_batch_save_beside=true"></span></div>
+      <div class="row muted" id="batch-help"></div>
+    </section>
+    <section>
+      <h2>IRF</h2>
+      <div class="row"><label class="lbl">Machine IRF (.npy) *</label><input type="text" class="grow" data-field="sv_batch_mirf"><button data-pick="sv_batch_mirf" data-kind="file">Browse...</button></div>
+    </section>
+    <section>
+      <h2>Fitting Parameters</h2>
+      <div class="row"><span class="muted">Fit model:</span>
+        <label><input type="radio" name="sv_fit_model_batch" data-field="sv_fit_model_batch" value="discrete"> n-exp</label>
+        <label><input type="radio" name="sv_fit_model_batch" data-field="sv_fit_model_batch" value="gaussian"> Gaussian dist.</label>
+        <label><input type="radio" name="sv_fit_model_batch" data-field="sv_fit_model_batch" value="lorentzian"> Lorentzian dist.</label>
+        <label><input type="radio" name="sv_fit_model_batch" data-field="sv_fit_model_batch" value="tail"> n-exp tail</label></div>
+      <div class="row" data-when="sv_fit_model_batch=discrete|tail"><span class="muted">Components:</span>
+        <label><input type="radio" name="iv_nexp_batch" data-field="iv_nexp_batch" value="1"> 1</label><label><input type="radio" name="iv_nexp_batch" data-field="iv_nexp_batch" value="2"> 2</label><label><input type="radio" name="iv_nexp_batch" data-field="iv_nexp_batch" value="3"> 3</label></div>
+      <div class="row" data-when="sv_fit_model_batch!=discrete|tail"><span class="muted">Components:</span>
+        <label><input type="radio" name="iv_ncomp_dist_batch" data-field="iv_ncomp_dist_batch" value="1"> 1 (unimodal)</label><label><input type="radio" name="iv_ncomp_dist_batch" data-field="iv_ncomp_dist_batch" value="2"> 2 (bimodal)</label></div>
+      <div class="row"><label class="lbl">Fit window (ns)</label><input type="text" class="short" data-field="sv_batch_tau_min"> to <input type="text" class="short" data-field="sv_batch_tau_max"></div>
+    </section>
+    <section data-when="sv_batch_mode=tiled">
+      <h2>Tile Registration</h2>
+      <div class="row"><label><input type="checkbox" data-field="bv_batch_register"> Phase-correlation registration</label></div>
+      <div class="row"><label class="lbl">Max shift (px)</label><input type="text" class="short" data-field="sv_batch_reg_shift"></div>
+    </section>
+    <section>
+      <h2>Masking</h2>
+      <div class="row"><label><input type="checkbox" data-field="bv_batch_thr"> Intensity threshold (min photons/px):</label><input type="text" class="short" data-field="sv_batch_thr" data-enable="bv_batch_thr=true"></div>
+      <div class="row"><label><input type="checkbox" data-field="bv_batch_correct_pileup"> Apply Coates pile-up correction</label></div>
+      <div class="row"><label class="lbl">Time-varying bg PTU</label><input type="text" class="grow" data-field="sv_batch_tvb_ptu" placeholder="optional, applied to every FOV"><button data-pick="sv_batch_tvb_ptu" data-kind="file">Browse...</button></div>
+    </section>
+    <section>
+      <h2>Image Export</h2>
+      <div class="row"><label><input type="checkbox" data-field="bv_batch_save_lifetime"> Lifetime image (uint16 TIFF)</label><label><input type="checkbox" data-field="bv_batch_save_rgb"> Component RGB TIFF</label><label><input type="checkbox" data-field="bv_batch_save_intensity"> Intensity TIFF</label></div>
+      <div class="row"><label><input type="checkbox" data-field="bv_batch_save_npy"> Raw maps (.npy)</label><label><input type="checkbox" data-field="bv_batch_save_ind"> Individual component maps</label></div>
+      <div class="row"><label><input type="checkbox" data-field="bv_batch_save_stack"> 4D stacks - (T, H, W) .npy per map (timelapse only)</label></div>
+      <div class="row"><label class="lbl">Lifetime colour scale (ns)</label><input type="text" class="short" data-field="sv_batch_tau_lo"> to <input type="text" class="short" data-field="sv_batch_tau_hi"><span class="muted">(blank = auto)</span></div>
+      <div class="row"><label class="lbl">Gamma</label><input type="text" class="short" data-field="sv_batch_gamma"><span class="muted">(0.4 = boost dim tissue; 1.0 = linear)</span></div>
+      <div class="row"><label class="lbl">Intensity display max</label><input type="text" class="short" data-field="sv_batch_int_max"><span class="muted">(blank = auto 99th percentile)</span></div>
+      <div class="row"><label class="lbl">Lifetime weighting</label><select data-field="sv_batch_tau_weighting"><option value="amplitude">amplitude</option><option value="intensity">intensity</option></select></div>
+    </section>
+    <section data-when="sv_batch_mode=timelapse">
+      <h2>Timelapse - Reference Lifetimes</h2>
+      <div class="row"><label><input type="checkbox" data-field="bv_tl_fix_tau"> Fix reference τ values (skip pooled-decay fit)</label></div>
+      <div class="row">τ₁ <input type="text" class="short" data-field="sv_tl_tau1" data-enable="bv_tl_fix_tau=true">
+        <span data-when="iv_nexp_batch=2|3">τ₂ <input type="text" class="short" data-field="sv_tl_tau2" data-enable="bv_tl_fix_tau=true"></span>
+        <span data-when="iv_nexp_batch=3">τ₃ <input type="text" class="short" data-field="sv_tl_tau3" data-enable="bv_tl_fix_tau=true"></span></div>
+      <div class="row"><label><input type="checkbox" data-field="bv_tl_pool_positions"> Pool all positions for a shared reference τ</label></div>
+      <div class="row"><label><input type="checkbox" data-field="bv_tl_bound_fraction"> Compute bound fraction α₂/(α₁+α₂)</label></div>
+    </section>
+  </div>
+
+  <!-- ===== Machine IRF ===== -->
+  <div data-forms="irf">
+    <section>
+      <h2>Source Data</h2>
+      <div class="row"><label class="lbl">PTU/XLSX folder *</label><input type="text" class="grow" data-field="sv_mirf_src"><button data-pick="sv_mirf_src" data-kind="dir">Browse...</button></div>
+      <div class="row muted">Builder uses matching &lt;name&gt;.ptu + &lt;name&gt;.xlsx pairs.</div>
+    </section>
+    <section>
+      <h2>Build Settings</h2>
+      <div class="row"><label class="lbl">Align anchor</label><select data-field="sv_mirf_anchor"><option>peak</option><option>halfmax</option><option>onset10</option><option>slope</option></select></div>
+      <div class="row"><label class="lbl">Reducer</label><select data-field="sv_mirf_reducer"><option>median</option><option>mean</option></select></div>
+    </section>
+    <section>
+      <h2>Output</h2>
+      <div class="row"><label class="lbl">Output directory *</label><input type="text" class="grow" data-field="sv_mirf_out_dir"><button data-pick="sv_mirf_out_dir" data-kind="dir">Browse...</button></div>
+      <div class="row"><label class="lbl">Base filename</label><input type="text" class="grow" data-field="sv_mirf_name"></div>
+    </section>
+  </div>
+
+  <!-- ===== Phasor ===== -->
+  <div data-forms="phasor">
+    <section>
+      <h2>Input Mode</h2>
+      <div class="row"><label><input type="radio" name="sv_ph_mode" data-field="sv_ph_mode" value="new"> New PTU file</label><label><input type="radio" name="sv_ph_mode" data-field="sv_ph_mode" value="session"> Resume session (.npz)</label></div>
+      <div data-when="sv_ph_mode=new">
+        <div class="row"><label class="lbl">PTU file *</label><input type="text" class="grow" data-field="sv_ph_ptu"><button data-pick="sv_ph_ptu" data-kind="file">Browse...</button></div>
+        <div class="row"><label class="lbl">IRF XLSX</label><input type="text" class="grow" data-field="sv_ph_irf" placeholder="optional"><button data-pick="sv_ph_irf" data-kind="file">Browse...</button></div>
+        <div class="row"><label class="lbl">Machine IRF</label><input type="text" class="grow" data-field="sv_ph_mirf" placeholder="optional"><button data-pick="sv_ph_mirf" data-kind="file">Browse...</button></div>
+        <div class="row muted">XLSX takes priority if both supplied</div>
+        <div class="row"><label class="lbl">Channel</label><input type="text" class="short" id="ph-channel" placeholder="auto"><span class="muted">Frequency (MHz)</span><input type="text" class="short" id="ph-freq" placeholder="from file"></div>
+        <div class="row muted">Channel and frequency are only needed if FLIMKit asks for them.</div>
+      </div>
+      <div class="row" data-when="sv_ph_mode=session"><label class="lbl">Session (.npz) *</label><input type="text" class="grow" data-field="sv_ph_session"><button data-pick="sv_ph_session" data-kind="file">Browse...</button></div>
+    </section>
+    <section>
+      <h2>Display Options</h2>
+      <div class="row"><label class="lbl">Min photons (fraction)</label><input type="text" class="short" data-field="sv_ph_minph"><span class="muted">Max cursors</span><input type="text" class="short" data-field="sv_ph_maxc"></div>
+    </section>
+    <section>
+      <h2>Find Peaks</h2>
+      <div class="row"><label class="lbl">Smooth σ</label><input type="text" class="short" data-field="sv_ph_pk_sigma"><span class="muted">Threshold</span><input type="text" class="short" data-field="sv_ph_pk_thresh"><button id="ph-peaks">🔍 Find Peaks</button></div>
+    </section>
+    <section>
+      <h2>FRET Analysis</h2>
+      <div class="row"><label class="lbl">Donor τ (ns)</label><input type="text" class="short" data-field="sv_ph_fret_taud"></div>
+      <div class="row"><label class="lbl">Acceptor τ (ns)</label><input type="text" class="short" data-field="sv_ph_fret_taua"><span class="muted">(blank = donor-only)</span></div>
+      <div class="row"><label class="lbl">Donor fretting</label><input type="text" class="short" data-field="sv_ph_fret_fretting"></div>
+      <div class="row"><button id="ph-fret-overlay">↔ Overlay Trajectory</button><button id="ph-fret-fit">Fit Donor FRET</button><button id="ph-fret-clear">✕ Clear Overlay</button></div>
+    </section>
+  </div>
+
+  <section data-forms="fov stitch batch">
+    <details id="expert">
+      <summary>Expert Settings</summary>
+      <div class="grid2">
+        <span>Optimizer</span><select data-expert="optimizer"><option value="de">Differential Evolution</option><option value="lm_multistart">Levenberg-Marquardt</option></select>
+        <span>Cost function</span><select data-expert="cost_function"><option value="poisson">Poisson deviance</option><option value="chi2">Chi² (legacy)</option></select>
+        <span>DE population</span><input type="text" class="short" data-expert="de_population">
+        <span>DE max iter</span><input type="text" class="short" data-expert="de_maxiter">
+        <span>LM restarts</span><input type="text" class="short" data-expert="lm_restarts">
+        <span>Binning (NxN)</span><input type="text" class="short" data-expert="binning_factor">
+        <span>CPU workers</span><input type="text" class="short" data-expert="n_workers">
+        <span>Min photons/px</span><input type="text" class="short" data-expert="min_photons">
+        <span>Channel filter</span><input type="text" class="short" data-expert="channels" placeholder="all">
+        <span>IRF FWHM (ns)</span><input type="text" class="short" data-expert="irf_fwhm" placeholder="auto">
+        <span>IRF alignment</span><select data-expert="irf_align"><option value="steepest_rise">Steepest rise</option><option value="decay_peak">Decay peak</option></select>
+        <span>IRF shift ±bins</span><input type="text" class="short" data-expert="irf_shift_bins">
+        <span>Fit start (ns)</span><input type="text" class="short" data-expert="fit_start_ns">
+        <span>Fit end (ns)</span><input type="text" class="short" data-expert="fit_end_ns">
+        <span>Exclude bands</span><input type="text" data-expert="exclude_ns" placeholder="7.2-8.8,11.0-11.5">
+        <span></span><span></span>
+      </div>
+      <div class="col" style="margin-top:6px">
+        <label><input type="checkbox" data-expert="align_irf"> Align measured IRF peak to the decay rising edge</label>
+        <label><input type="checkbox" data-expert="free_tau_perpixel"> Free τ per pixel (slower)</label>
+        <label><input type="checkbox" data-expert="pileup_in_model"> Pile-up in the model</label>
+        <label><input type="checkbox" data-expert="bg_in_model"> Background in the model</label>
+        <label><input type="checkbox" data-expert="fit_t0"> Free t0 (tail fit only)</label>
+      </div>
+      <div class="row" style="margin-top:6px"><button id="expert-save">Confirm</button><button id="expert-reset">Reset Defaults</button></div>
+    </details>
+  </section>
+
+  <section>
+    <div class="row">
+      <button class="primary" data-run="fov" data-forms="fov"></button><button class="primary" data-run="stitch" data-forms="stitch"></button>
+      <button class="primary" data-run="batch" data-forms="batch"></button><button class="primary" data-run="irf" data-forms="irf"></button>
+      <button class="primary" data-run="phasor" data-forms="phasor"></button>
+      <button id="btn-cancel">Cancel</button>
+    </div>
+    <div id="progress"></div>
+    <div class="row muted" id="results-status"></div>
+  </section>
+
+  <section>
+    <details>
+      <summary>File &amp; Session</summary>
+      <div class="row"><input type="text" class="grow" id="load-session-path" placeholder="restore .roi_session.npz"><button data-pick-target="load-session-path" data-kind="file">Browse...</button><button id="load-session">Restore NPZ</button></div>
+      <div class="row"><input type="text" class="grow" id="save-session-path" placeholder="save session into folder"><button data-pick-target="save-session-path" data-kind="dir">Browse...</button><button id="save-session">Save NPZ</button></div>
+      <div class="row"><input type="text" class="grow" id="save-as-path" placeholder="save NPZ as .../name.roi_session.npz"><button data-pick-target="save-as-path" data-kind="dir" data-pick-suffix="/session.roi_session.npz">Folder...</button><button id="save-as">Save NPZ As</button></div>
+      <div class="row"><button id="menu-reset">Reset analysis (clear regions and results)</button></div>
+    </details>
+  </section>
+</div>
+
+<div>
+  <!-- ===== FOV / stitch preview ===== -->
+  <div data-forms="fov stitch">
+    <section>
+      <div class="stage"><img id="fov-img" alt="FLIMKit preview"><canvas id="fov-overlay"></canvas></div>
+      <div class="mono muted" id="fov-status"></div>
+      <div class="row" id="row-z" hidden><span id="z-label" class="mono"></span><input type="range" id="z" min="0" max="0" step="1" style="flex:1"></div>
+      <div id="scale" hidden>
+        <div class="row"><span class="muted">τ range (ns)</span> Min <input type="text" class="short" data-field="fov.tau_min"> Max <input type="text" class="short" data-field="fov.tau_max"><button id="btn-auto">Auto</button></div>
+        <div class="row"><span class="muted">Γ</span><input type="text" class="short" data-field="fov.gamma"><span class="muted">Colormap</span><select data-field="fov.cmap" data-choices="cmap"></select><button id="btn-update">Update</button></div>
+        <div class="row"><label><input type="checkbox" data-field="fov.show_decay"> Show Decay Plot</label><span class="muted">View:</span>
+          <label><input type="radio" name="fov.view" data-field="fov.view" value="flim"> FLIM</label><label><input type="radio" name="fov.view" data-field="fov.view" value="intensity"> Intensity</label></div>
+        <div class="row"><span class="muted">τ weighting:</span>
+          <label><input type="radio" name="fov.weighting" data-field="fov.weighting" value="amplitude"> Amplitude</label><label><input type="radio" name="fov.weighting" data-field="fov.weighting" value="intensity"> Intensity</label></div>
+      </div>
+    </section>
+    <section>
+      <h2>ROI Analysis</h2>
+      <div class="row" id="roi-modes">
+        <button data-mode="select">◯ Select</button><button data-mode="rect">▭ Rectangle</button><button data-mode="ellipse">○ Ellipse</button>
+        <button data-mode="polygon">◇ Polygon</button><button data-mode="freehand">✏ Freehand</button><button id="roi-clear">Clear All</button>
+      </div>
+      <div class="muted" id="roi-hint"></div>
+      <div class="scroll"><table><thead><tr><th></th><th>Name</th><th>Type</th><th>τ_mean</th><th>τ_med</th><th>τ_sd</th><th>Photons</th><th>σ_photons</th></tr></thead><tbody id="roi-body"></tbody></table></div>
+      <div class="row"><button id="roi-delete">Delete Selected</button><input type="text" id="roi-name" placeholder="new name" style="width:120px"><button id="roi-rename">Rename</button></div>
+      <div class="row"><input type="text" class="grow" id="roi-import-path" placeholder="GeoJSON file"><button data-pick-target="roi-import-path" data-kind="file">Browse...</button><button id="roi-import">Import from GeoJSON</button></div>
+      <div class="row"><button id="roi-export-csv">Export as CSV</button><button id="roi-export-geojson">Export as GeoJSON</button><button id="roi-export-all">Export All as GeoJSON</button></div>
+      <div class="row"><span class="muted">ROI fit:</span>
+        <select id="roi-nexp"><option value="1">1-exp</option><option value="2">2-exp</option><option value="3">3-exp</option></select>
+        τ_min <input type="text" class="short" id="roi-tmin"> τ_max <input type="text" class="short" id="roi-tmax">
+        <select id="roi-cost"><option value="poisson">Poisson deviance</option><option value="chi2">Pearson χ²</option></select>
+        <button id="roi-fit">⚗ Fit ROI Decay</button><button id="roi-view">View Fit</button></div>
+      <div class="mono muted" id="roi-status"></div>
+      <div id="roi-result" hidden><img id="roi-fit-img" alt="ROI fit" style="max-width:100%"><div class="muted" id="roi-fit-name"></div><table><tbody id="roi-fit-rows"></tbody></table></div>
+    </section>
+  </div>
+
+  <!-- ===== Phasor view ===== -->
+  <section data-forms="phasor">
+    <div class="row"><button id="ph-clear">✕ Clear all</button><button id="ph-undo">↩ Undo</button><span class="muted">Mode:</span>
+      <label><input type="radio" name="ph.mode" data-field="ph.mode" value="ellipse"> Ellipse</label><label><input type="radio" name="ph.mode" data-field="ph.mode" value="poly"> Polygon</label></div>
+    <div class="row" data-when="ph.mode=ellipse"><span class="muted">Radius</span><input type="range" min="0.01" max="0.15" step="0.005" data-field="ph.radius"><span class="mono" id="ph-radius-val"></span>
+      <span class="muted">Minor/major</span><input type="range" min="0.1" max="1" step="0.01" data-field="ph.ratio"><span class="mono" id="ph-ratio-val"></span></div>
+    <div class="row"><span class="muted">Phasor filter</span><select data-field="ph.filter_method"><option>none</option><option>gaussian</option><option>median</option><option>wavelet</option></select>
+      <span data-when="ph.filter_method=gaussian">σ <input type="text" class="short" data-field="ph.filter_sigma"></span>
+      <span data-when="ph.filter_method=median|wavelet">size <input type="text" class="short" data-field="ph.filter_size"></span>
+      <button id="ph-filter-apply">Apply</button><button id="ph-filter-reset">Reset</button></div>
+    <div class="stage"><img id="ph-img" alt="Phasor plot"><canvas id="ph-overlay"></canvas></div>
+    <div class="mono muted" id="ph-status"></div>
+    <div class="muted" id="ph-hint"></div>
+    <div class="row" id="ph-peaks-list" hidden></div>
+    <div class="row"><span class="muted">Cursor fit:</span>
+      <select id="ph-nexp"><option value="1">1-exp</option><option value="2">2-exp</option><option value="3">3-exp</option></select>
+      τ_min <input type="text" class="short" id="ph-tmin"> τ_max <input type="text" class="short" id="ph-tmax">
+      <select id="ph-cost"><option value="poisson">Poisson deviance</option><option value="chi2">Pearson χ²</option></select>
+      <button id="ph-fit">⚗ Fit Cursor Decay</button><button id="ph-view">View Fit</button></div>
+    <div id="ph-result" hidden><img id="ph-fit-img" alt="Cursor fit" style="max-width:100%"><div class="muted" id="ph-fit-name"></div><table><tbody id="ph-fit-rows"></tbody></table></div>
+    <div class="row"><input type="text" class="grow" id="ph-save-path" placeholder="phasor_session.npz path"><button data-pick-target="ph-save-path" data-kind="dir" data-pick-suffix="/phasor_session.npz">Folder...</button><button id="ph-save">Save session</button></div>
+  </section>
+
+  <!-- ===== Machine IRF plot ===== -->
+  <section data-forms="irf">
+    <h2>Machine IRF</h2>
+    <img id="irf-img" alt="Machine IRF" style="max-width:100%" hidden>
+    <div class="muted" id="irf-empty">Build a machine IRF to see the plot here.</div>
+  </section>
+
+  <section>
+    <div class="row tabs"><button data-tab="tab-log" class="on">Progress</button><button data-tab="tab-summary">Fit Summary</button><button data-tab="tab-images">Images</button></div>
+    <div id="tab-log"><pre id="log"></pre><div class="row"><button id="save-log">Save log...</button><button id="clear-log">Clear log</button></div></div>
+    <div id="tab-summary" hidden>
+      <div class="scroll"><table><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead><tbody id="summary-body"></tbody></table></div>
+      <div class="row"><button id="summary-csv">Export summed fit CSV</button></div>
+      <details><summary>Export Images...</summary>
+        <div class="row" id="export-keys"></div>
+        <div class="row"><button id="export-all">All</button><button id="export-none">None</button></div>
+        <div class="row"><label><input type="checkbox" id="export-scalebar" checked> Include scale bar</label><label><input type="checkbox" id="export-annotations" checked> Include ROI annotations</label></div>
+        <div class="row"><label><input type="radio" name="export-format" value="png" checked> PNG</label><label><input type="radio" name="export-format" value="ometiff"> OME-TIFF</label><label><input type="radio" name="export-format" value="omezarr"> OME-Zarr</label></div>
+        <div class="row"><input type="text" class="grow" id="export-path"><button data-pick-target="export-path" data-kind="dir">Browse...</button><button id="export-go">Export</button></div>
+      </details>
+    </div>
+    <div id="tab-images" hidden>
+      <img id="result-img" alt="" style="max-width:100%; background:#2b2b2b">
+      <div class="row"><span id="result-label" class="muted">No images loaded</span></div>
+      <div class="row"><button id="img-prev">◀ Prev</button><input type="range" id="img-slider" min="0" max="0" step="1" style="flex:1"><button id="img-next">Next ▶</button></div>
+    </div>
+  </section>
+</div>
+</main>
+
+<div id="picker" class="overlay" hidden>
+  <div class="box">
+    <div class="row"><strong id="picker-title">Choose</strong></div>
+    <div class="row"><button id="picker-up">.. Up</button><span id="picker-dir" class="mono muted"></span></div>
+    <ul class="list" id="picker-list"></ul>
+    <div class="row"><button id="picker-this">Select this folder</button><span style="flex:1"></span><button id="picker-cancel">Cancel</button></div>
+  </div>
+</div>
+<div id="modal" class="overlay" hidden>
+  <div class="box">
+    <div class="row"><strong id="modal-title"></strong><span style="flex:1"></span><button id="modal-close">Close</button></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+<div id="toasts"></div>
+<script src="/core.js"></script>
+<script src="/fov.js"></script>
+<script src="/modes.js"></script>
+</body>
+</html>

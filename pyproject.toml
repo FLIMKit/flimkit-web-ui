@@ -1,0 +1,39 @@
+[build-system]
+requires = ['setuptools>=68']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'flimkit-web-ui'
+version = '0.1.0'
+description = 'A browser front end for FLIMKit: every desktop mode, driven from a web page'
+readme = 'README.md'
+requires-python = '>=3.12'
+license = 'MIT'
+license-files = ['LICENSE.md']
+authors = [
+    {name = 'Alex Hunt', email = 'alexander.hunt@ed.ac.uk'},
+]
+keywords = ['FLIM', 'FLIMKit', 'plugin', 'fluorescence', 'lifetime', 'phasor', 'web']
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Science/Research',
+    'Programming Language :: Python :: 3',
+    'Topic :: Scientific/Engineering :: Bio-Informatics',
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = ['pytest', 'numpy', 'matplotlib', 'pillow']
+
+[project.urls]
+Homepage = 'https://github.com/FLIMKit/flimkit-web-ui'
+FLIMKit = 'https://github.com/FLIMKit/FLIMKit'
+
+[project.entry-points.'flimkit.plugins']
+flimkit_web_ui = 'flimkit_web_ui'
+
+[tool.setuptools.packages.find]
+include = ['flimkit_web_ui*']
+
+[tool.setuptools.package-data]
+flimkit_web_ui = ['*.html', '*.js']
