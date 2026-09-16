@@ -394,6 +394,13 @@ def act_switch_form(app, args):
     app._switch_form(form)
 
 
+def act_clear_view(app, args):
+    p = app._fov_preview
+    p._hide_zstack()
+    p._clear()
+    p._status.set('No FOV loaded')
+
+
 def act_auto_scale(app, args):
     app._fov_preview._auto_detect_scale()
 
@@ -627,6 +634,7 @@ ACTIONS = {
     'run_fov': act_run_fov,
     'cancel': act_cancel,
     'switch_form': act_switch_form,
+    'clear_view': act_clear_view,
     'auto_scale': act_auto_scale,
     'update_display': act_update_display,
     'z': act_z,

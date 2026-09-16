@@ -182,6 +182,7 @@
                      tau_max: $('roi-tmax').value, cost_function: $('roi-cost').value })
       .then(function (out) { if (out.ok) { pendingFit = ids; } });
   });
+  $('btn-clear-view').addEventListener('click', function () { act('clear_view'); });
   $('roi-view').addEventListener('click', function () {
     var ids = selectedIds().sort(function (a, b) { return a - b; });
     if (!ids.length) { toast('warning', 'Select a region in the list first.'); return; }
