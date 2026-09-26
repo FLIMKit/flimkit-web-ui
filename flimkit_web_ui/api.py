@@ -150,21 +150,18 @@ BUILTIN_FILTER_PARAMS = {'gaussian': ['sigma'], 'median': ['size'], 'wavelet': [
 
 
 def phasor_filters():
-    try:
-        from flimkit.phasor.filters import phasor_filter_methods
-        methods = list(phasor_filter_methods())
-    except Exception:
-        methods = list(BUILTIN_FILTER_PARAMS)
     params = dict(BUILTIN_FILTER_PARAMS)
     try:
         import inspect
         from flimkit.plugins import registry
         for registered in registry.phasor_filters():
+            if registered.id in params:
+                continue
             declared = inspect.signature(registered.fn).parameters
             params[registered.id] = [n for n in ('sigma', 'size') if n in declared]
     except Exception:
         pass
-    return ['none'] + methods, {m: params.get(m, []) for m in methods}
+    return ['none'] + list(params), params
 
 
 def get_state(app):

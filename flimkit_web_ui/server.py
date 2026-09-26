@@ -141,14 +141,18 @@ def make_handler(app):
     return Handler
 
 
+class _Server(ThreadingHTTPServer):
+    allow_reuse_address = os.name != 'nt'
+
+
 def bind(handler):
     host, port = _address()
     try:
-        return ThreadingHTTPServer((host, port), handler)
+        return _Server((host, port), handler)
     except OSError as exc:
         if _chosen_port():
             raise
-        server = ThreadingHTTPServer((host, 0), handler)
+        server = _Server((host, 0), handler)
         print(f'[web_ui] port {port} is taken ({exc.strerror}), using {server.server_address[1]}')
         return server
 
