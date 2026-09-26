@@ -49,6 +49,7 @@
   .toast { background:#2e2e2e; border-left:4px solid var(--accent); padding:8px 10px; border-radius:4px; white-space:pre-wrap; box-shadow:0 2px 8px rgba(0,0,0,.4); }
   .toast.warning { border-color:var(--warn); } .toast.error { border-color:var(--err); }
   .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:30; padding:16px; }
+  #picker { z-index:50; }
   .overlay .box { background:var(--panel); border:1px solid var(--line); border-radius:6px; width:min(720px, 100%); max-height:90vh; overflow:auto; padding:12px; }
   ul.list { list-style:none; margin:8px 0; padding:0; max-height:360px; overflow:auto; background:#1a1a1a; border:1px solid var(--line); }
   ul.list li { padding:4px 8px; cursor:pointer; }
@@ -368,6 +369,7 @@
       <div id="scale" hidden>
         <div class="row"><span class="muted">τ range (ns)</span> Min <input type="text" class="short" data-field="fov.tau_min"> Max <input type="text" class="short" data-field="fov.tau_max"><button id="btn-auto">Auto</button></div>
         <div class="row"><span class="muted">Γ</span><input type="text" class="short" data-field="fov.gamma"><span class="muted">Colormap</span><select data-field="fov.cmap" data-choices="cmap"></select><button id="btn-update">Update</button></div>
+        <div class="row" data-when="fov.int_cmap!=undefined"><span class="muted">Intensity</span> Min <input type="text" class="short" data-field="fov.int_min"> Max <input type="text" class="short" data-field="fov.int_max"><button id="btn-int-auto">Auto</button><span class="muted">Colormap</span><select data-field="fov.int_cmap" data-choices="int_cmap"></select></div>
         <div class="row"><label><input type="checkbox" data-field="fov.show_decay"> Show Decay Plot</label><span class="muted">View:</span>
           <label><input type="radio" name="fov.view" data-field="fov.view" value="flim"> FLIM</label><label><input type="radio" name="fov.view" data-field="fov.view" value="intensity"> Intensity</label></div>
         <div class="row"><span class="muted">τ weighting:</span>
@@ -401,9 +403,9 @@
       <label><input type="radio" name="ph.mode" data-field="ph.mode" value="ellipse"> Ellipse</label><label><input type="radio" name="ph.mode" data-field="ph.mode" value="poly"> Polygon</label></div>
     <div class="row" data-when="ph.mode=ellipse"><span class="muted">Radius</span><input type="range" min="0.01" max="0.15" step="0.005" data-field="ph.radius"><span class="mono" id="ph-radius-val"></span>
       <span class="muted">Minor/major</span><input type="range" min="0.1" max="1" step="0.01" data-field="ph.ratio"><span class="mono" id="ph-ratio-val"></span></div>
-    <div class="row"><span class="muted">Phasor filter</span><select data-field="ph.filter_method"><option>none</option><option>gaussian</option><option>median</option><option>wavelet</option></select>
-      <span data-when="ph.filter_method=gaussian">σ <input type="text" class="short" data-field="ph.filter_sigma"></span>
-      <span data-when="ph.filter_method=median|wavelet">size <input type="text" class="short" data-field="ph.filter_size"></span>
+    <div class="row"><span class="muted">Phasor filter</span><select data-field="ph.filter_method" data-choices="ph_filter"></select>
+      <span id="ph-filt-sigma" hidden>σ <input type="text" class="short" data-field="ph.filter_sigma"></span>
+      <span id="ph-filt-size" hidden>size <input type="text" class="short" data-field="ph.filter_size"></span>
       <button id="ph-filter-apply">Apply</button><button id="ph-filter-reset">Reset</button></div>
     <div class="stage"><img id="ph-img" alt="Phasor plot"><canvas id="ph-overlay"></canvas></div>
     <div class="mono muted" id="ph-status"></div>

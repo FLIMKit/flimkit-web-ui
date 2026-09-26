@@ -152,9 +152,13 @@
   $('btn-auto').addEventListener('click', function () { act('auto_scale'); });
   $('btn-update').addEventListener('click', function () {
     var f = {};
-    document.querySelectorAll('#scale input[type=text][data-field]').forEach(function (el) { f[el.dataset.field] = el.value; });
-    f['fov.cmap'] = document.querySelector('#scale select[data-field]').value;
+    document.querySelectorAll('#scale input[type=text][data-field], #scale select[data-field]').forEach(function (el) {
+      if (el.dataset.field in S.fields) { f[el.dataset.field] = el.value; }
+    });
     post('/api/set', f).then(function () { act('update_display'); });
+  });
+  $('btn-int-auto').addEventListener('click', function () {
+    post('/api/set', { 'fov.int_min': '', 'fov.int_max': '' }).then(function () { act('update_display'); });
   });
   $('z').addEventListener('change', function () { act('z', { i: parseInt($('z').value, 10) }); });
   $('roi-clear').addEventListener('click', function () { if (confirm('Clear all regions?')) { act('roi_clear'); } });

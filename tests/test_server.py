@@ -137,3 +137,43 @@ def test_environment_overrides_the_address(monkeypatch):
     monkeypatch.setenv('FLIMKIT_WEB_PORT', '14500')
     assert server._address() == ('0.0.0.0', 14500)
     assert server.url() == 'http://127.0.0.1:14500'
+
+
+class EmptyConfig:
+
+    def get(self, key, default=None):
+        return default
+
+
+@pytest.fixture
+def no_config(monkeypatch):
+    monkeypatch.setattr(server, 'plugin_config', lambda name: EmptyConfig())
+    monkeypatch.delenv('FLIMKIT_WEB_PORT', raising=False)
+    monkeypatch.delenv('FLIMKIT_WEB_HOST', raising=False)
+
+
+def test_default_port_leaves_8765_to_the_bridge(no_config):
+    assert server._address() == ('127.0.0.1', 8766)
+
+
+def test_a_taken_default_port_moves_to_a_free_one(no_config, monkeypatch):
+    blocker = ThreadingHTTPServer(('127.0.0.1', 0), server.make_handler(None))
+    monkeypatch.setattr(server, 'DEFAULT_PORT', blocker.server_address[1])
+    try:
+        httpd = server.bind(server.make_handler(None))
+        try:
+            assert httpd.server_address[1] not in (0, blocker.server_address[1])
+        finally:
+            httpd.server_close()
+    finally:
+        blocker.server_close()
+
+
+def test_a_taken_chosen_port_is_an_error(no_config, monkeypatch):
+    blocker = ThreadingHTTPServer(('127.0.0.1', 0), server.make_handler(None))
+    monkeypatch.setenv('FLIMKIT_WEB_PORT', str(blocker.server_address[1]))
+    try:
+        with pytest.raises(OSError):
+            server.bind(server.make_handler(None))
+    finally:
+        blocker.server_close()

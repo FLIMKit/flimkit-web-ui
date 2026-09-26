@@ -21,15 +21,23 @@ _server = None
 _lock = threading.Lock()
 
 
+DEFAULT_PORT = 8766
+
+
+def _chosen_port():
+    return os.environ.get('FLIMKIT_WEB_PORT') or plugin_config('web_ui').get('port')
+
+
 def _address():
     cfg = plugin_config('web_ui')
     host = os.environ.get('FLIMKIT_WEB_HOST') or cfg.get('host', '127.0.0.1')
-    port = os.environ.get('FLIMKIT_WEB_PORT') or cfg.get('port', 8765) or 8765
-    return host, int(port)
+    return host, int(_chosen_port() or DEFAULT_PORT)
 
 
 def url():
     host, port = _address()
+    if _server is not None:
+        port = _server.server_address[1]
     if host in ('', '0.0.0.0', '::'):
         host = '127.0.0.1'
     return 'http://' + host + ':' + str(port)
@@ -133,6 +141,22 @@ def make_handler(app):
     return Handler
 
 
+class _Server(ThreadingHTTPServer):
+    allow_reuse_address = os.name != 'nt'
+
+
+def bind(handler):
+    host, port = _address()
+    try:
+        return _Server((host, port), handler)
+    except OSError as exc:
+        if _chosen_port():
+            raise
+        server = _Server((host, 0), handler)
+        print(f'[web_ui] port {port} is taken ({exc.strerror}), using {server.server_address[1]}')
+        return server
+
+
 def start(app):
     global _server
     with _lock:
@@ -141,7 +165,7 @@ def start(app):
         bridge.install_dialogs()
         bridge.install_roi_hooks()
         bridge.hook_progress()
-        server = ThreadingHTTPServer(_address(), make_handler(app))
+        server = bind(make_handler(app))
         server.daemon_threads = True
         threading.Thread(target=server.serve_forever, daemon=True).start()
         _server = server
