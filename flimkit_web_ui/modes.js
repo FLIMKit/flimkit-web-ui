@@ -123,6 +123,9 @@
     if (s.form !== 'phasor') { return; }
     fig.update(s.figs.phasor);
     $('ph-status').textContent = s.phasor.status;
+    var takes = (s.phasor.filter_params || {})[s.fields['ph.filter_method']] || [];
+    vis('ph-filt-sigma', takes.indexOf('sigma') >= 0);
+    vis('ph-filt-size', takes.indexOf('size') >= 0);
     $('ph-radius-val').textContent = Number(s.fields['ph.radius']).toFixed(3);
     $('ph-ratio-val').textContent = Number(s.fields['ph.ratio']).toFixed(2);
     $('ph-hint').textContent = !s.phasor.loaded ? '' : (s.fields['ph.mode'] === 'poly'

@@ -146,6 +146,27 @@ def _cursor_json(cur):
     return {'type': 'ellipse', 'color': cur['color'], 'g': float(cur['center_g']), 's': float(cur['center_s'])}
 
 
+BUILTIN_FILTER_PARAMS = {'gaussian': ['sigma'], 'median': ['size'], 'wavelet': []}
+
+
+def phasor_filters():
+    try:
+        from flimkit.phasor.filters import phasor_filter_methods
+        methods = list(phasor_filter_methods())
+    except Exception:
+        methods = list(BUILTIN_FILTER_PARAMS)
+    params = dict(BUILTIN_FILTER_PARAMS)
+    try:
+        import inspect
+        from flimkit.plugins import registry
+        for registered in registry.phasor_filters():
+            declared = inspect.signature(registered.fn).parameters
+            params[registered.id] = [n for n in ('sigma', 'size') if n in declared]
+    except Exception:
+        pass
+    return ['none'] + methods, {m: params.get(m, []) for m in methods}
+
+
 def get_state(app):
     bridge.mark_poll()
 
@@ -179,11 +200,13 @@ def get_state(app):
         buttons = {'fov': app._btn_fov, 'stitch': app._btn_st, 'phasor': app._btn_ph,
                    'batch': app._btn_batch, 'irf': app._btn_mirf}
         progress = bridge.progress_state()
+        filter_choices, filter_params = phasor_filters()
         return {
             'form': getattr(app, '_current_form', 'fov'),
             'fields': fields,
             'choices': {'irf': [list(c) for c in IRFWidget.CHOICES], 'cmap': list(display.COLORMAPS.keys()),
-                        'int_cmap': list(getattr(display, 'INTENSITY_COLORMAPS', ['inferno']))},
+                        'int_cmap': list(getattr(display, 'INTENSITY_COLORMAPS', ['inferno'])),
+                        'ph_filter': filter_choices},
             'run_labels': {k: _btn_text(b) for k, b in buttons.items()},
             'busy': {k: _btn_state(b) for k, b in buttons.items()},
             'running': any(_btn_state(b) for b in (app._btn_fov, app._btn_st, app._btn_ph)) or len(progress) > 0,
@@ -215,6 +238,7 @@ def get_state(app):
                 'freq': float(ph._freq or 0.0),
                 'cursors': [_cursor_json(c) for c in ph._cursors],
                 'max_cursors': ph.max_cursors,
+                'filter_params': filter_params,
                 'has_fit': ph._last_fit_result is not None,
                 'peaks': [] if ph._peak_results is None else [
                     {'g': float(ph._peak_results['peak_g'][i]), 's': float(ph._peak_results['peak_s'][i]),

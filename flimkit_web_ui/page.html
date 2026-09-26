@@ -403,9 +403,9 @@
       <label><input type="radio" name="ph.mode" data-field="ph.mode" value="ellipse"> Ellipse</label><label><input type="radio" name="ph.mode" data-field="ph.mode" value="poly"> Polygon</label></div>
     <div class="row" data-when="ph.mode=ellipse"><span class="muted">Radius</span><input type="range" min="0.01" max="0.15" step="0.005" data-field="ph.radius"><span class="mono" id="ph-radius-val"></span>
       <span class="muted">Minor/major</span><input type="range" min="0.1" max="1" step="0.01" data-field="ph.ratio"><span class="mono" id="ph-ratio-val"></span></div>
-    <div class="row"><span class="muted">Phasor filter</span><select data-field="ph.filter_method"><option>none</option><option>gaussian</option><option>median</option><option>wavelet</option></select>
-      <span data-when="ph.filter_method=gaussian">σ <input type="text" class="short" data-field="ph.filter_sigma"></span>
-      <span data-when="ph.filter_method=median|wavelet">size <input type="text" class="short" data-field="ph.filter_size"></span>
+    <div class="row"><span class="muted">Phasor filter</span><select data-field="ph.filter_method" data-choices="ph_filter"></select>
+      <span id="ph-filt-sigma" hidden>σ <input type="text" class="short" data-field="ph.filter_sigma"></span>
+      <span id="ph-filt-size" hidden>size <input type="text" class="short" data-field="ph.filter_size"></span>
       <button id="ph-filter-apply">Apply</button><button id="ph-filter-reset">Reset</button></div>
     <div class="stage"><img id="ph-img" alt="Phasor plot"><canvas id="ph-overlay"></canvas></div>
     <div class="mono muted" id="ph-status"></div>

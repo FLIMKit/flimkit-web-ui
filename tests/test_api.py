@@ -95,3 +95,21 @@ def test_about_runs_without_the_desktop():
     out = api.run_action(types.SimpleNamespace(), 'about', {})
     assert __version__ in out['text']
     assert out['notes'] == []
+
+
+def test_phasor_filters_include_plugin_filters_and_their_boxes():
+    registry = pytest.importorskip('flimkit.plugins.registry')
+
+    def smooth(real, imag, sigma=1.0):
+        return real, imag
+    registry.register_phasor_filter('webui_test_smooth', 'Smooth', smooth, source='webui-test')
+    try:
+        choices, params = api.phasor_filters()
+    finally:
+        registry._rollback('webui-test')
+    assert choices[:4] == ['none', 'gaussian', 'median', 'wavelet']
+    assert 'webui_test_smooth' in choices
+    assert params['gaussian'] == ['sigma']
+    assert params['median'] == ['size']
+    assert params['wavelet'] == []
+    assert params['webui_test_smooth'] == ['sigma']
