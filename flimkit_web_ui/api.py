@@ -20,6 +20,9 @@ EXTRA_VARS = {
     'fov.show_decay': lambda app: app._fov_preview._bv_show_decay,
     'fov.view': lambda app: app._fov_preview._sv_display_mode,
     'fov.weighting': lambda app: app._fov_preview._sv_tau_weighting,
+    'fov.int_min': lambda app: app._fov_preview._sv_int_min,
+    'fov.int_max': lambda app: app._fov_preview._sv_int_max,
+    'fov.int_cmap': lambda app: app._fov_preview._sv_int_cmap,
     'ph.mode': lambda app: app._phasor_panel._mode_var,
     'ph.radius': lambda app: app._phasor_panel._radius,
     'ph.ratio': lambda app: app._phasor_panel._ratio,
@@ -179,7 +182,8 @@ def get_state(app):
         return {
             'form': getattr(app, '_current_form', 'fov'),
             'fields': fields,
-            'choices': {'irf': [list(c) for c in IRFWidget.CHOICES], 'cmap': list(display.COLORMAPS.keys())},
+            'choices': {'irf': [list(c) for c in IRFWidget.CHOICES], 'cmap': list(display.COLORMAPS.keys()),
+                        'int_cmap': list(getattr(display, 'INTENSITY_COLORMAPS', ['inferno']))},
             'run_labels': {k: _btn_text(b) for k, b in buttons.items()},
             'busy': {k: _btn_state(b) for k, b in buttons.items()},
             'running': any(_btn_state(b) for b in (app._btn_fov, app._btn_st, app._btn_ph)) or len(progress) > 0,
@@ -406,7 +410,11 @@ def act_auto_scale(app, args):
 
 
 def act_update_display(app, args):
-    app._fov_preview._update_flim_display()
+    p = app._fov_preview
+    if hasattr(p, '_on_update_display'):
+        p._on_update_display()
+    else:
+        p._update_flim_display()
 
 
 def act_z(app, args):

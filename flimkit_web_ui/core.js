@@ -154,9 +154,9 @@ function buildChoices() {
       box.appendChild(lab);
     });
   });
-  document.querySelectorAll('[data-choices=cmap]').forEach(function (sel) {
+  document.querySelectorAll('[data-choices]').forEach(function (sel) {
     sel.innerHTML = '';
-    S.choices.cmap.forEach(function (c) { sel.add(new Option(c, c)); });
+    (S.choices[sel.dataset.choices] || []).forEach(function (c) { sel.add(new Option(c, c)); });
   });
 }
 

@@ -80,6 +80,11 @@ def test_set_fields_updates_state_vars_and_rejects_unknown_ones():
         api.set_fields(app, {'sv_not_a_field': 1})
 
 
+def test_apply_fit_settings_explains_an_old_flimkit():
+    with pytest.raises(ValueError, match='0.13.6'):
+        api.run_action(types.SimpleNamespace(), 'apply_fit_settings', {'stems': ['b']})
+
+
 def test_unknown_actions_are_rejected():
     with pytest.raises(ValueError):
         api.run_action(types.SimpleNamespace(), 'not_an_action', {})

@@ -155,6 +155,37 @@ def act_recent_clear(app, args):
     app._clear_recent_files()
 
 
+def _needs_apply(app):
+    if hasattr(app, '_apply_fit_settings') == False:
+        raise ValueError('Apply fit settings needs FLIMKit 0.13.6 or newer.')
+
+
+def act_apply_fit_choices(app, args):
+    _needs_apply(app)
+    from flimkit.utils.apply_settings import fov_targets, read_session_settings, settings_summary
+    src, problem = app._apply_fit_settings_source()
+    if problem != '':
+        raise ValueError(problem)
+    src_path = Path(src)
+    form_state, _ = read_session_settings(src_path.parent / (src_path.stem + '.roi_session.npz'))
+    if not form_state:
+        form_state = app._capture_form_state()
+    targets = fov_targets(app._proj_browser._project, src)
+    return {
+        'source': src_path.name,
+        'summary': settings_summary(form_state, app._fov_preview._flim_color_scale, getattr(app._fov_preview, '_int_display', None)),
+        'targets': [{'stem': s, 'fitted': r.has_session} for s, r in targets],
+    }
+
+
+def act_apply_fit_settings(app, args):
+    _needs_apply(app)
+    stems = [str(s) for s in args.get('stems', [])]
+    if not stems:
+        raise ValueError('Tick at least one file.')
+    app._apply_fit_settings(stems)
+
+
 # ---------- tools that do not touch Tk ----------
 
 def _floats(s):
@@ -313,6 +344,8 @@ ACTIONS = {
     'project_select': act_project_select,
     'recent_open': act_recent_open,
     'recent_clear': act_recent_clear,
+    'apply_fit_choices': act_apply_fit_choices,
+    'apply_fit_settings': act_apply_fit_settings,
 }
 
 OFF_UI = {

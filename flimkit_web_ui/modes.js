@@ -203,6 +203,11 @@
     box.appendChild(el('div', { class: 'h2', style: 'margin-top:10px' }, 'Recent Files'));
     box.appendChild(el('ul', { class: 'list', id: 'recent-list' }));
     box.appendChild(row(button('Clear Recent', function () { act('recent_clear'); })));
+    box.appendChild(el('div', { class: 'h2', style: 'margin-top:10px' }, 'Apply fit settings'));
+    box.appendChild(el('div', { class: 'muted' }, 'Fit other files in this project the way the loaded file was fitted, with the same FLIM display. ROIs are not copied.'));
+    var applyBox = el('div');
+    box.appendChild(row(button('Choose files...', function () { loadApplyChoices(applyBox); })));
+    box.appendChild(applyBox);
     openModal('Project', box);
     App.last.project = null;
     App.last.recent = null;
@@ -233,6 +238,37 @@
     }
   }
   App.hooks.push(refreshProject);
+
+  function loadApplyChoices(boxEl) {
+    act('apply_fit_choices').then(function (out) {
+      if (!out.ok) { return; }
+      boxEl.innerHTML = '';
+      boxEl.appendChild(el('pre', { style: 'white-space:pre-wrap' }, 'From ' + out.source + '\n' + out.summary));
+      var list = el('div', { class: 'col' });
+      out.targets.forEach(function (t) {
+        var lab = el('label');
+        var cb = el('input', { type: 'checkbox' });
+        cb.value = t.stem;
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(' ' + (t.fitted ? '● ' : '○ ') + t.stem));
+        list.appendChild(lab);
+      });
+      boxEl.appendChild(list);
+      boxEl.appendChild(el('div', { class: 'muted' }, 'Files marked ● already have a fit, which is replaced.'));
+      function tick(on) { list.querySelectorAll('input').forEach(function (c) { c.checked = on; }); }
+      boxEl.appendChild(row(
+        button('All', function () { tick(true); }),
+        button('None', function () { tick(false); }),
+        button('Fit selected', function () {
+          var stems = Array.prototype.map.call(list.querySelectorAll('input:checked'), function (c) { return c.value; });
+          if (!stems.length) { toast('warning', 'Tick at least one file.'); return; }
+          act('apply_fit_settings', { stems: stems }).then(function (r) {
+            if (r.ok) { closeModal(); selectTab('tab-log'); }
+          });
+        })
+      ));
+    });
+  }
 
   var SYNTH = [
     ['Lifetime(s) τ, ns (comma for multi-exp)', 'tau', '4.1'], ['Amplitudes (comma, blank = equal)', 'amps', ''],

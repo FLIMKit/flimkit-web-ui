@@ -49,6 +49,7 @@
   .toast { background:#2e2e2e; border-left:4px solid var(--accent); padding:8px 10px; border-radius:4px; white-space:pre-wrap; box-shadow:0 2px 8px rgba(0,0,0,.4); }
   .toast.warning { border-color:var(--warn); } .toast.error { border-color:var(--err); }
   .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:30; padding:16px; }
+  #picker { z-index:50; }
   .overlay .box { background:var(--panel); border:1px solid var(--line); border-radius:6px; width:min(720px, 100%); max-height:90vh; overflow:auto; padding:12px; }
   ul.list { list-style:none; margin:8px 0; padding:0; max-height:360px; overflow:auto; background:#1a1a1a; border:1px solid var(--line); }
   ul.list li { padding:4px 8px; cursor:pointer; }
@@ -368,6 +369,7 @@
       <div id="scale" hidden>
         <div class="row"><span class="muted">τ range (ns)</span> Min <input type="text" class="short" data-field="fov.tau_min"> Max <input type="text" class="short" data-field="fov.tau_max"><button id="btn-auto">Auto</button></div>
         <div class="row"><span class="muted">Γ</span><input type="text" class="short" data-field="fov.gamma"><span class="muted">Colormap</span><select data-field="fov.cmap" data-choices="cmap"></select><button id="btn-update">Update</button></div>
+        <div class="row" data-when="fov.int_cmap!=undefined"><span class="muted">Intensity</span> Min <input type="text" class="short" data-field="fov.int_min"> Max <input type="text" class="short" data-field="fov.int_max"><button id="btn-int-auto">Auto</button><span class="muted">Colormap</span><select data-field="fov.int_cmap" data-choices="int_cmap"></select></div>
         <div class="row"><label><input type="checkbox" data-field="fov.show_decay"> Show Decay Plot</label><span class="muted">View:</span>
           <label><input type="radio" name="fov.view" data-field="fov.view" value="flim"> FLIM</label><label><input type="radio" name="fov.view" data-field="fov.view" value="intensity"> Intensity</label></div>
         <div class="row"><span class="muted">τ weighting:</span>
