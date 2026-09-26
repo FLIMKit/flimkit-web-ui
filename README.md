@@ -1,6 +1,6 @@
 # flimkit-web-ui
 
-A browser front end for [FLIMKit](https://github.com/FLIMKit/FLIMKit). Start FLIMKit, open `http://127.0.0.1:8765`, and every desktop mode is there in a web page: Single FOV, Tile Stitch, Phasor, Batch and the Machine IRF builder, plus the project browser, synthetic data generator, preferences and plugin manager.
+A browser front end for [FLIMKit](https://github.com/FLIMKit/FLIMKit). Start FLIMKit, open `http://127.0.0.1:8766`, and every desktop mode is there in a web page: Single FOV, Tile Stitch, Phasor, Batch and the Machine IRF builder, plus the project browser, synthetic data generator, preferences and plugin manager.
 
 It is an add-on, not a second copy of the app. The page drives the desktop window's own form variables and presses its own buttons, so a fit started from the browser runs through exactly the same code path as one started from the desktop, and the two stay in sync.
 
@@ -51,10 +51,12 @@ The address is read from the `plugin:web_ui` section of `~/.flimkit/config.json`
 {
   "plugin:web_ui": {
     "host": "127.0.0.1",
-    "port": 8765
+    "port": 8766
   }
 }
 ```
+
+Port 8765 belongs to the [FLIMKit bridge](https://github.com/FLIMKit/flimkit-bridge), so the web UI defaults to 8766. If that is taken it moves to a free port and prints it in FLIMKit's log, and **Tools > Open Web UI** opens wherever it ended up. A port set here or in `FLIMKIT_WEB_PORT` is used as given, and a clash there is an error rather than a quiet move.
 
 ## Running without a desktop (Docker, servers)
 
